@@ -51,8 +51,7 @@ class Keyboard extends EventEmitter {
 
   undo() {
     const command = this.history.pop();
-    console.log("Отмена:")
-    command?.state._eventHandler(command.key);
+    command?.state._undo(command.key);
   }
 
   test() {
@@ -74,7 +73,10 @@ class Keyboard extends EventEmitter {
 
     this.undo();
 
-    this._states.altState.rebind_command('q', () => { return "Открыть блокнот"});
+    this._states.altState.rebind_command('q', {
+      command: () => { return "Открыть блокнот"},
+      undo: () => { return "Закрыть блокнот" }
+    });
 
     this.press(this.keys[0].name);
   }
@@ -84,7 +86,8 @@ abstract class State {
   abstract commands: {};
 
   abstract _eventHandler(name: string): void;
-  abstract rebind_command(name: string, action: Function): void;
+  abstract rebind_command(name: string, action: Action): void;
+  abstract _undo(name: string): void;
 };
 
 class DefaultState extends State {
@@ -94,7 +97,8 @@ class DefaultState extends State {
     console.log(`${name} | press(${name})`);
   }
 
-  rebind_command(name: string, action: Function): void {}
+  rebind_command(name: string, action: Action): void {}
+  _undo(name: string): void {};
 }
 
 class ShiftState extends State {
@@ -104,7 +108,8 @@ class ShiftState extends State {
     console.log(`${name.toUpperCase()} | press(${name})`);
   }
 
-  rebind_command(name: string, action: Function): void {};
+  rebind_command(name: string, action: Action): void {};
+  _undo(name: string): void {};
 }
 
 class AltState extends State {
@@ -113,16 +118,26 @@ class AltState extends State {
   constructor() {
     super();
     this.commands = {
-      q: () => { return "Open Browser" },
-      w: () => { return "Open Console" }
+      q: {
+        command: () => { return "Open Browser" },
+        undo: () => { return "Close Browser" }
+      },
+      w: {
+        command: () => { return "Open Console" },
+        undo: () => { return "Close Console" }
+      }
     };
   }
 
   _eventHandler(name: string): void {
-    this.commands[name] == undefined ? () => {} : console.log(`${this.commands[name]()} | press(alt+${name})`);
+    this.commands[name] == undefined ? () => {} : console.log(`${this.commands[name].command()} | press(alt+${name})`);
   }
 
-  rebind_command(name: string, action: Function): void {
+  _undo(name: string): void {
+    this.commands[name] == undefined ? () => {} : console.log(`${this.commands[name].undo()} | press(alt+${name})`)
+  }
+
+  rebind_command(name: string, action: Action): void {
     this.commands[name] = action;
   };
 }
@@ -137,6 +152,11 @@ class Key {
 interface HistoryAction {
   key: string;
   state: State;
+}
+
+type Action = {
+  command: Function,
+  undo: Function
 }
 
 const keyboard = new Keyboard();
